@@ -5,6 +5,7 @@ from yandex_music import ClientAsync
 from data import DataBase
 from aiogram import Bot, F, Router
 from aiogram.types import CallbackQuery, FSInputFile
+from aiogram.enums import ChatAction
 from aiogram.exceptions import TelegramBadRequest
 from contextlib import suppress
 from keyboards import fabrics
@@ -35,10 +36,11 @@ async def pagination_handler_chart(call: CallbackQuery, callback_data: fabrics.P
 
             audio = FSInputFile(path=rf'E:\музыка\tracks\{track_id}.mp3',
                                 filename=f'{" - ".join([track_info[page * 10 + i]["title"], track_info[page * 10 + i]["artist"]])}')
+            bool = await bot.send_chat_action(chat_id=call.message.chat.id, action=ChatAction.UPLOAD_VOICE)
             await bot.send_audio(chat_id=call.message.chat.id, audio=audio)
 
     for i in range(10):
-        if callback_data.action == f"{i+1}-track":
+        if callback_data.action == f"{i + 1}-track":
             track = tracks[page * 10 + i]
             track_id = track_info[page * 10 + i]['track_id']
 
@@ -47,10 +49,11 @@ async def pagination_handler_chart(call: CallbackQuery, callback_data: fabrics.P
 
             audio = FSInputFile(path=rf'E:\музыка\tracks\{track_id}.mp3',
                                 filename=f'{" - ".join([track_info[page * 10 + i]["title"], track_info[page * 10 + i]["artist"]])}')
+            bool = await bot.send_chat_action(chat_id=call.message.chat.id, action=ChatAction.UPLOAD_VOICE, request_timeout=15)
             await bot.send_audio(chat_id=call.message.chat.id, audio=audio)
 
     if callback_data.action == "down_rand":
-        i_rand = random.randint(0,100)
+        i_rand = random.randint(0, 100)
         track = tracks[i_rand]
         track_id = track_info[i_rand]['track_id']
 
@@ -59,8 +62,8 @@ async def pagination_handler_chart(call: CallbackQuery, callback_data: fabrics.P
 
         audio = FSInputFile(path=rf'E:\музыка\tracks\{track_id}.mp3',
                             filename=f'{" - ".join([track_info[i_rand]["title"], track_info[i_rand]["artist"]])}')
+        bool = await bot.send_chat_action(chat_id=call.message.chat.id, action=ChatAction.UPLOAD_VOICE)
         await bot.send_audio(chat_id=call.message.chat.id, audio=audio)
-
 
     if callback_data.action == "next":
         page = page_num + 1 if page_num < 10 else page_num
@@ -74,71 +77,76 @@ async def pagination_handler_chart(call: CallbackQuery, callback_data: fabrics.P
     await call.answer()
 
 
-
-@router.callback_query(fabrics.Pagination.filter(F.action.in_(["next_tr", "prev", "down_10_tracks_tr", "down_rand_tr",
-                                                               "1-track_tr", "2-track_tr", "3-track_tr", "4-track_tr", "5-track_tr",
-                                                               "6-track_tr", "7-track_tr", "8-track_tr",
-                                                               "9-track_tr", "10-track_tr"])))
-async def pagination_handler_chart(call: CallbackQuery, callback_data: fabrics.PaginationTrack, bot: Bot):
+@router.callback_query(
+    fabrics.PaginationTrack.filter(F.action.in_(["next_t", "prev_t", "down_10_tracks_tr", "down_rand_tr",
+                                                 "1-track_tr", "2-track_tr", "3-track_tr", "4-track_tr", "5-track_tr",
+                                                 "6-track_tr", "7-track_tr", "8-track_tr",
+                                                 "9-track_tr", "10-track_tr"])))
+async def pagination_handler_likes(call: CallbackQuery, callback_data: fabrics.PaginationTrack, bot: Bot):
     page_num = int(callback_data.page)
-    page = page_num
-    list_favorite_tracks_user_tuple = DataBase.get_list_favorite_tracks(call.from_user.id)
-
+    page_now = page_num
     token = DataBase.get_token(call.message.chat.id)
     print(call.message.chat.id, token)
     client = await ClientAsync(f'{token}').init()
-    track_info = DataBase.get_list_chart_tracks()
+    track_info = DataBase.get_list_select_user_favorite_tracks(call.from_user.id)
+    list_title_tracks_likes = [[track['title'], track['artist']] for track in track_info]
+
     tracks = await client.tracks([str(track_info[i]['track_id']) for i in range(len(track_info))])
 
     if callback_data.action == "down_10_tracks_tr":
         for i in range(10):
-            track = tracks[page * 10 + i]
-            track_id = track_info[page * 10 + i]['track_id']
-            print(track_id)
+            track = tracks[page_now * 10 + i]
+
+            track_id = track_info[page_now * 10 + i]['track_id']
+
             if os.path.exists(rf'E:\музыка\tracks\{track_id}.mp3') == 0:
+                bool = await bot.send_chat_action(chat_id=call.message.chat.id, action=ChatAction.RECORD_VOICE)
                 result = await track.download_async(rf"E:\музыка\tracks\{track_id}.mp3", 'mp3', 320)
 
             audio = FSInputFile(path=rf'E:\музыка\tracks\{track_id}.mp3',
-                                filename=f'{" - ".join([track_info[page * 10 + i]["title"], track_info[page * 10 + i]["artist"]])}')
+                                filename=f'{" - ".join([track_info[page_now * 10 + i]["title"], track_info[page_now * 10 + i]["artist"]])}')
+            bool = await bot.send_chat_action(chat_id=call.message.chat.id, action=ChatAction.UPLOAD_VOICE )
             await bot.send_audio(chat_id=call.message.chat.id, audio=audio)
 
     for i in range(10):
-        if callback_data.action == f"{i+1}-track_tr":
-            track = tracks[page * 10 + i]
-            track_id = track_info[page * 10 + i]['track_id']
+        if callback_data.action == f"{i + 1}-track_tr":
+            track = tracks[page_now * 10 + i]
+
+            track_id = track_info[page_now * 10 + i]['track_id']
 
             if os.path.exists(rf'E:\музыка\tracks\{track_id}.mp3') == 0:
+                bool = await bot.send_chat_action(chat_id=call.message.chat.id, action=ChatAction.RECORD_VOICE)
                 result = await track.download_async(rf"E:\музыка\tracks\{track_id}.mp3", 'mp3', 320)
 
             audio = FSInputFile(path=rf'E:\музыка\tracks\{track_id}.mp3',
-                                filename=f'{" - ".join([track_info[page * 10 + i]["title"], track_info[page * 10 + i]["artist"]])}')
+                                filename=f'{" - ".join([track_info[page_now * 10 + i]["title"], track_info[page_now * 10 + i]["artist"]])}')
+            bool = await bot.send_chat_action(chat_id=call.message.chat.id, action=ChatAction.UPLOAD_VOICE)
             await bot.send_audio(chat_id=call.message.chat.id, audio=audio)
 
     if callback_data.action == "down_rand_tr":
-        i_rand = random.randint(0,100)
+        i_rand = random.randint(0, 100)
         track = tracks[i_rand]
-        track_id = track_info[i_rand]['track_id']
+        track_id = track_info[page_now * 10 + i_rand]['track_id']
 
         if os.path.exists(rf'E:\музыка\tracks\{track_id}.mp3') == 0:
+            bool = await bot.send_chat_action(chat_id=call.message.chat.id, action=ChatAction.RECORD_VOICE)
             result = await track.download_async(rf"E:\музыка\tracks\{track_id}.mp3", 'mp3', 320)
 
         audio = FSInputFile(path=rf'E:\музыка\tracks\{track_id}.mp3',
-                            filename=f'{" - ".join([track_info[i_rand]["title"], track_info[i_rand]["artist"]])}')
+                            filename=f'{" - ".join([track_info[page_now * 10 + i_rand]["title"], track_info[page_now * 10 + i_rand]["artist"]])}')
+        bool = await bot.send_chat_action(chat_id=call.message.chat.id, action=ChatAction.UPLOAD_VOICE)
         await bot.send_audio(chat_id=call.message.chat.id, audio=audio)
 
+    if callback_data.action == "next_t":
+        page_now = page_num + 1 if page_num < len(track_info)//10 else page_num
 
-    if callback_data.action == "next_tr":
-        page = page_num + 1 if page_num < 10 else page_num
-
-    if callback_data.action == "prev_tr":
-        page = page_num - 1 if page_num > 0 else 0
+    if callback_data.action == "prev_t":
+        page_now = page_now - 1 if page_num >= 1 else 0
 
     with suppress(TelegramBadRequest):
-        await call.message.edit_text(f"🗒️🏆Страница <b>{page + 1}</b>",
-                                     reply_markup=fabrics.paginator_likes(page))
+        await call.message.edit_text(f"🗒️🏆Страница <b>{page_now + 1}</b>",
+                                     reply_markup=fabrics.paginator_likes(page_now, list_title_tracks_likes))
     await call.answer()
-
-
 
 
 @router.callback_query(fabrics.Action.filter(F.action.in_("no_action")))

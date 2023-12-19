@@ -11,7 +11,6 @@ class Pagination(CallbackData, prefix="pag"):
 
 class PaginationTrack(CallbackData, prefix="pag_tr"):
     action: str
-    list_title_tracks_likes: list
     page: int
 
 
@@ -64,12 +63,8 @@ def paginator_chart(page: int = 0):
 
 
 
+def paginator_likes(page, list_favorite_tracks):
 
-
-
-
-
-def paginator_likes(page: int = 0, list_title_tracks_likes: list = []):
 
     track_kb = InlineKeyboardBuilder()
     track_kb.row(
@@ -80,30 +75,30 @@ def paginator_likes(page: int = 0, list_title_tracks_likes: list = []):
         width=2
     )
     track_kb.row(
-        InlineKeyboardButton(text=f'{" - ".join(list_title_tracks_likes[page * 10])}',
-                             callback_data=PaginationTrack(action='1-track_tr', list_title_tracks_likes = list_title_tracks_likes, page=page).pack()),
-        InlineKeyboardButton(text=f'{" - ".join(list_title_tracks_likes[page * 10 + 1])}',
-                             callback_data=PaginationTrack(action='2-track_tr', list_title_tracks_likes = list_title_tracks_likes, page=page).pack()),
-        InlineKeyboardButton(text=f'{" - ".join(list_title_tracks_likes[page * 10 + 2])}',
-                             callback_data=PaginationTrack(action='3-track_tr', list_title_tracks_likes = list_title_tracks_likes, page=page).pack()),
-        InlineKeyboardButton(text=f'{" - ".join(list_title_tracks_likes[page * 10 + 3])}',
-                             callback_data=PaginationTrack(action='4-track_tr', list_title_tracks_likes = list_title_tracks_likes, page=page).pack()),
-        InlineKeyboardButton(text=f'{" - ".join(list_title_tracks_likes[page * 10 + 4])}',
-                             callback_data=PaginationTrack(action='5-track_tr', list_title_tracks_likes = list_title_tracks_likes, page=page).pack()),
-        InlineKeyboardButton(text=f'{" - ".join(list_title_tracks_likes[page * 10 + 5])}',
-                             callback_data=PaginationTrack(action='6-track_tr', list_title_tracks_likes = list_title_tracks_likes, page=page).pack()),
-        InlineKeyboardButton(text=f'{" - ".join(list_title_tracks_likes[page * 10 + 6])}',
-                             callback_data=PaginationTrack(action='7-track_tr', list_title_tracks_likes = list_title_tracks_likes, page=page).pack()),
-        InlineKeyboardButton(text=f'{" - ".join(list_title_tracks_likes[page * 10 + 7])}',
-                             callback_data=PaginationTrack(action='8-track_tr', list_title_tracks_likes = list_title_tracks_likes, page=page).pack()),
-        InlineKeyboardButton(text=f'{" - ".join(list_title_tracks_likes[page * 10 + 8])}',
-                             callback_data=PaginationTrack(action='9-track_tr', list_title_tracks_likes = list_title_tracks_likes, page=page).pack()),
-        InlineKeyboardButton(text=f'{" - ".join(list_title_tracks_likes[page * 10 + 9])}',
-                             callback_data=PaginationTrack(action='10-track_tr', list_title_tracks_likes = list_title_tracks_likes, page=page).pack()),
+        InlineKeyboardButton(text=f'{" - ".join(list_favorite_tracks[page * 10])}',
+                             callback_data=PaginationTrack(action='1-track_tr', page=page).pack()),
+        InlineKeyboardButton(text=f'{" - ".join(list_favorite_tracks[page * 10 + 1])}',
+                             callback_data=PaginationTrack(action='2-track_tr', page=page).pack()),
+        InlineKeyboardButton(text=f'{" - ".join(list_favorite_tracks[page * 10 + 2])}',
+                             callback_data=PaginationTrack(action='3-track_tr', page=page).pack()),
+        InlineKeyboardButton(text=f'{" - ".join(list_favorite_tracks[page * 10 + 3])}',
+                             callback_data=PaginationTrack(action='4-track_tr', page=page).pack()),
+        InlineKeyboardButton(text=f'{" - ".join(list_favorite_tracks[page * 10 + 4])}',
+                             callback_data=PaginationTrack(action='5-track_tr', page=page).pack()),
+        InlineKeyboardButton(text=f'{" - ".join(list_favorite_tracks[page * 10 + 5])}',
+                             callback_data=PaginationTrack(action='6-track_tr', page=page).pack()),
+        InlineKeyboardButton(text=f'{" - ".join(list_favorite_tracks[page * 10 + 6])}',
+                             callback_data=PaginationTrack(action='7-track_tr', page=page).pack()),
+        InlineKeyboardButton(text=f'{" - ".join(list_favorite_tracks[page * 10 + 7])}',
+                             callback_data=PaginationTrack(action='8-track_tr',  page=page).pack()),
+        InlineKeyboardButton(text=f'{" - ".join(list_favorite_tracks[page * 10 + 8])}',
+                             callback_data=PaginationTrack(action='9-track_tr', page=page).pack()),
+        InlineKeyboardButton(text=f'{" - ".join(list_favorite_tracks[page * 10 + 9])}',
+                             callback_data=PaginationTrack(action='10-track_tr', page=page).pack()),
         width=3)
     track_kb.row(
-        InlineKeyboardButton(text="◀️", callback_data=PaginationTrack(action="prev_tr", list_title_tracks_likes = list_title_tracks_likes, page=page).pack()),
-        InlineKeyboardButton(text="▶️", callback_data=PaginationTrack(action="next_tr", list_title_tracks_likes = list_title_tracks_likes, page=page).pack()),
+        InlineKeyboardButton(text="◀️", callback_data=PaginationTrack(action="prev_t", page=page).pack()),
+        InlineKeyboardButton(text="▶️", callback_data=PaginationTrack(action="next_t", page=page).pack()),
         width=2
 
     )

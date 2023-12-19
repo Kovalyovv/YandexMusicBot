@@ -190,46 +190,61 @@ def update_chart_list():
     return 1
 
 
-def get_list_update_favorite_tracks(user_id, login, role):
+def get_list_select_user_favorite_tracks(user_id):
+
+    query = (
+        tracks
+        .select(tracks.yandex_music_id, tracks.title, tracks.artist)
+        .join(usertracks, on=(usertracks.track_id == tracks.yandex_music_id))
+        .where(usertracks.user_id == user_id))
+
+
+
+    list_tracks_info = []
+    for row in query:
+
+        list_tracks_info.append({
+            'track_id': row.yandex_music_id,
+            'title':  row.title,
+            'artist': row.artist
+        })
+    # print(list_tracks_info)
+    return list_tracks_info
+
+        # print(row.track_id, tracks.title, tracks.artist)
+
+
+
+def update_favorite_tracks(user_id):
+    login = get_user_login(user_id)
     response, counttracks = response_likes_tracks(login)
-    if (response.status_code == 200 and role == 2):
-        list_tracks = []
-        for i in range(0, counttracks):
-            id_track = response.json()[i]['id']
-            # id_album = response.json()[i]['albums'][0]['id']
-            artist = response.json()[i]['albums'][0]['artists']
-            title = response.json()[i]['title']
-            # album_title = response.json()[i]['albums'][0]['title']
-            autors = ', '.join([artist['name'] for artist in artist])
-            list_tracks.append([id_track, title, autors])
-        return list_tracks
-    if(response.status_code == 200 and role == 3):
-        list_tracks = []
-        for i in range(0, counttracks):
+    if response.status_code == 200:
+        i = 0
+        flag = 1
+        while(i < counttracks and flag != 0):
             id_track = response.json()[i]['id']
             id_album = response.json()[i]['albums'][0]['id']
             artist = response.json()[i]['albums'][0]['artists']
             title = response.json()[i]['title']
             album_title = response.json()[i]['albums'][0]['title']
             autors = ', '.join([artist['name'] for artist in artist])
-            # list_tracks.append([track__id, album_id, title, artists])
+            if(check_track(id_track)==1):
+                flag = 0
             result = insert_track_with_album(id_track, id_album, title, album_title, autors)
             result2 = insert_track_user(user_id, id_track)
+            i += 1
+            print(result, result2)
 
-            list_tracks.append([id_track, title, autors])
-        return list_tracks
-
-
-    list_tracks = []
-    track = usertracks.select(usertracks.user_id, usertracks.track_id, usertracks.date_added).where(
-        usertracks.user_id == user_id)
-    for row in track.execute():
-        list_tracks.append({
-            'user_id': row.user_id,
-            'track_id': row.track_id,
-            'date_added': row.date_added
-        })
-    return list_tracks
+    # list_tracks = []
+    # track = usertracks.select(usertracks.user_id, usertracks.track_id, usertracks.date_added).where(
+    #     usertracks.user_id == user_id)
+    # for row in track.execute():
+    #     list_tracks.append({
+    #         'user_id': row.user_id,
+    #         'track_id': row.track_id,
+    #         'date_added': row.date_added
+    #     })
+    # return list_tracks
 
 
 def insert_track_with_album(id_track, id_album, title_track, title_album, artists):
@@ -282,6 +297,14 @@ def add_user(tg_id, login, token, role, bitrate):
         user_info = users.insert(user_id=tg_id, username=login, token=token, role=role, bitrate=bitrate)
         user_info.execute()
 
+
+def check_track(id_track):
+    query = tracks.select().where(tracks.yandex_music_id == id_track)
+    record_exists = query.exists()
+    if record_exists == False:
+        return 0
+    else:
+        return 1
 
 # print(add_user(794845497, 'minko.serezha2022', 'AQAAAAArbx-eAAG8Xq5LWimUC0qykmWaf2wSXqk', 2, 192))
 
@@ -338,11 +361,11 @@ def get_user_id(login):
 
 
 def get_user_login(user_id):
-    user_login = users.select(users.login).where(users.user_id == f"{user_id}").alias('user_login')
+    user_login = users.select(users.username).where(users.user_id == f"{user_id}").alias('user_login')
     result = []
     for row in user_login.execute():
         result.append({
-            'Login': row.login
+            'Login': row.username
         })
     return result[0]["Login"]
 
