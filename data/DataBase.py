@@ -1,14 +1,62 @@
 import time
+from os import system
+import os
+import datetime
 import requests
+
+import aiofiles
+import shutil
+import gzip
+import yadisk
+import os
+from datetime import datetime
+from zipfile import ZipFile
+
 import psycopg2
 from psycopg2 import sql
-
+import csv
 from peewee import *
 from peewee import _atomic, IntegrityError
+
+
+
+
+
+
+
+
+
+
+
+
 
 db = PostgresqlDatabase(database='YandexMusic', user='postgres', password='123', host='localhost', port='5432')
 # Подключение к базе данных
 db.connect()
+
+
+
+
+
+
+
+y = yadisk.YaDisk(token="y0_AgAAAAAhlBCGAAsJygAAAAD1yVkOmHTXfWTvTA6QuZk3ZEjOHKJdWtA")
+
+def doDump(path):
+
+    date = datetime.strftime(datetime.now(), "%d.%m.%Y-%H.%M.%S")
+    y.mkdir(f'/backup/{date}')
+    with ZipFile(f"backup/backup.zip", "a") as myzip:
+        myzip.write("backup/albums.csv")
+        myzip.write("backup/tracks.csv")
+        myzip.write("backup/users.csv")
+        myzip.write("backup/postgres_localhost-2023_12_24_16_25_15-dump.sql")
+    y.upload("backup/backup.zip", f"/backup/{date}/backup.zip")
+
+
+
+
+
 
 
 class BaseModel(Model):
@@ -26,17 +74,17 @@ class users(BaseModel):
 
 class albums(BaseModel):
     album_id = PrimaryKeyField()
-    yandex_music_id = CharField()
+    yandex_music_id = IntegerField()
     title = CharField()
     artist = CharField()
 
 
 class tracks(BaseModel):
     track_id = PrimaryKeyField()
-    yandex_music_id = CharField()
+    yandex_music_id = IntegerField()
     title = CharField()
     artist = CharField()
-    album_id = ForeignKeyField(albums, backref='tracks')
+    album_id = IntegerField()
     date_added = DateTimeField()
 
 
@@ -52,12 +100,13 @@ class chart(BaseModel):
 class usertracks(BaseModel):
     user_id = ForeignKeyField(users, backref='usertracks')
     track_id = ForeignKeyField(tracks, backref='usertracks')
+    # track_id = BigIntegerField()
     date_added = DateTimeField()
 
 
-class albumtracks(BaseModel):
-    album_id = ForeignKeyField(albums, backref='albumtracks')
-    track_id = ForeignKeyField(tracks, backref='albumtracks')
+class useralbums(BaseModel):
+    album_id = ForeignKeyField(albums, backref='useralbums')
+    user_id = ForeignKeyField(tracks, backref='useralbums')
 
 
 class playlists(BaseModel):
@@ -73,8 +122,37 @@ class playlisttracks(BaseModel):
 
 
 with db:
-    db.create_tables([users, albums, tracks, albumtracks, playlists, playlisttracks])
+    db.create_tables([users, albums, tracks, useralbums, playlists, playlisttracks])
 
+def export_csv_albums():
+    # Выборка данных и экспорт в CSV
+    query = albums.select()
+    with open('backup/albums.csv', 'w', newline='', encoding="utf-8") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(['album_id', 'yandex_music_id', 'title', 'artist'])  # Записываем заголовок
+        for row in query:
+            csv_writer.writerow([row.album_id, row.yandex_music_id, row.title, row.artist])
+
+
+def export_csv_tracks():
+    # Выборка данных и экспорт в CSV
+    query2 = tracks.select(tracks.track_id, tracks.yandex_music_id, tracks.title, tracks.album_id, tracks.date_added)
+    with open('backup/tracks.csv', 'w', newline='', encoding="utf-8") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(['track_id', 'yandex_music_id', 'title', 'artist', 'album_id', 'date_added'])  # Записываем заголовок
+        for row in query2:
+            csv_writer.writerow([row.track_id, row.yandex_music_id, row.title, row.artist, row.album_id, row.date_added])
+
+def export_csv_users():
+    # Выборка данных и экспорт в CSV
+    query3 = users.select()
+
+
+    with open('backup/users.csv', 'w', newline='', encoding="utf-8") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(['user_id', 'username', 'token', 'role', 'bitrate'])  # Записываем заголовок
+        for row in query3:
+            csv_writer.writerow([row.user_id, row.username, row.token, row.role, row.bitrate])
 
 def is_user(user_id):
     query = users.select().where(users.user_id == user_id)
@@ -92,9 +170,27 @@ def get_token(user_id):
         result.append({
             'token': row.token
         })
-    print(result[0]["token"])
+    # print(result[0]["token"])
     return result[0]['token']
 
+def get_bitrate(user_id):
+    user_bitrate = users.select(users.bitrate).where(users.user_id == user_id).alias('user_bitrate')
+    result = []
+    for row in user_bitrate.execute():
+        result.append({
+            'bitrate': row.bitrate
+        })
+    print(result[0]['bitrate'])
+    return result[0]['bitrate']
+
+
+def update_user_bitratre(user_id, bitrate):
+    query = users.update()
+    nrows = (users
+             .update({users.bitrate : f'{bitrate}'})
+             .where(users.user_id == user_id)
+             .execute())
+    print(nrows)
 
 def insert_tracks_users_favorite(user_login):
     response, counttracks = response_likes_tracks(user_login)
@@ -198,8 +294,6 @@ def get_list_select_user_favorite_tracks(user_id):
         .join(usertracks, on=(usertracks.track_id == tracks.yandex_music_id))
         .where(usertracks.user_id == user_id))
 
-
-
     list_tracks_info = []
     for row in query:
 
@@ -211,7 +305,7 @@ def get_list_select_user_favorite_tracks(user_id):
     # print(list_tracks_info)
     return list_tracks_info
 
-        # print(row.track_id, tracks.title, tracks.artist)
+# print(row.track_id, tracks.title, tracks.artist)
 
 
 
@@ -220,20 +314,26 @@ def update_favorite_tracks(user_id):
     response, counttracks = response_likes_tracks(login)
     if response.status_code == 200:
         i = 0
-        flag = 1
-        while(i < counttracks and flag != 0):
+
+        while(i < counttracks):
+            flag = 1
             id_track = response.json()[i]['id']
+
             id_album = response.json()[i]['albums'][0]['id']
             artist = response.json()[i]['albums'][0]['artists']
             title = response.json()[i]['title']
             album_title = response.json()[i]['albums'][0]['title']
             autors = ', '.join([artist['name'] for artist in artist])
+            print(id_track, title, autors, album_title)
             if(check_track(id_track)==1):
+                print('есть')
                 flag = 0
-            result = insert_track_with_album(id_track, id_album, title, album_title, autors)
+            else:
+                result = insert_track_with_album(id_track, id_album, title, album_title, autors)
+            print(user_id, id_track)
             result2 = insert_track_user(user_id, id_track)
             i += 1
-            print(result, result2)
+            # print(result2)
 
     # list_tracks = []
     # track = usertracks.select(usertracks.user_id, usertracks.track_id, usertracks.date_added).where(
@@ -272,7 +372,7 @@ def insert_track_with_album(id_track, id_album, title_track, title_album, artist
 
 # print(insert_track_with_album( 52950078, 9168267, 'Paint It Black', 'Paint It Black Remixes',' Danny Darko, Julien Kelland'))
 
-def insert_track_user(user__id, track__id):
+def insert_track_user(user__id:int, track__id:int):
     try:
         with db.atomic():
             # Вставка track_id с обработкой конфликта
@@ -297,9 +397,28 @@ def add_user(tg_id, login, token, role, bitrate):
         user_info = users.insert(user_id=tg_id, username=login, token=token, role=role, bitrate=bitrate)
         user_info.execute()
 
+def delete_user(user_id):
+    query = users.delete().where(users.user_id == user_id)
+    record_exists = query.execute()
+    if record_exists == False:
+        return 0
+    else:
+        return 1
+
+
 
 def check_track(id_track):
     query = tracks.select().where(tracks.yandex_music_id == id_track)
+    record_exists = query.exists()
+
+    if record_exists == False:
+        return 0
+    else:
+        print(id_track)
+        return 1
+
+def check_album(id_album):
+    query = albums.select().where(albums.yandex_music_id == id_album)
     record_exists = query.exists()
     if record_exists == False:
         return 0
@@ -343,11 +462,15 @@ def get_users_info():
 def get_user_role(user_id):
     user_role = users.select(users.role).where(users.user_id == f"{user_id}").alias('user_role')
     result = []
-    for row in user_role.execute():
-        result.append({
-            'Role': row.role
-        })
-    return result[0]["Role"]
+    record_exists = user_role.exists()
+    if(record_exists):
+        for row in user_role.execute():
+            result.append({
+                'Role': row.role
+            })
+        return result[0]["Role"]
+    else:
+        return 0
 
 
 def get_user_id(login):
@@ -448,7 +571,7 @@ def response_likes_tracks(login):
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'same-origin',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.731 YaBrowser/23.11.1.731 Yowser/2.5 Safari/537.36',
-        'X-Current-UID': '563351686',
+        # 'X-Current-UID': '379380476',
         'X-KL-kfa-Ajax-Request': 'Ajax_Request',
         'X-Requested-With': 'XMLHttpRequest',
         'X-Retpath-Y': f'https://music.yandex.ru/users/{login}/tracks',
@@ -470,3 +593,206 @@ def response_likes_tracks(login):
 
     response = requests.post('https://music.yandex.ru/handlers/track-entries.jsx', headers=headers2, data=data)
     return response, counttracks
+
+
+
+def response_album(login):
+
+
+    headers = {
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Accept-Language': 'ru,en;q=0.9',
+        'Connection': 'keep-alive',
+        'Referer': f'https://music.yandex.ru/users/{login}/albums',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.771 YaBrowser/23.11.2.771 Yowser/2.5 Safari/537.36',
+        # 'X-Current-UID': '379380476',
+        'X-KL-kfa-Ajax-Request': 'Ajax_Request',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-Retpath-Y': f'https://music.yandex.ru/users/{login}/albums',
+        'X-Yandex-Music-Client-Now': '2023-12-20T22:30:36+03:00',
+        'sec-ch-ua': '"Chromium";v="118", "YaBrowser";v="23", "Not=A?Brand";v="99"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+    }
+
+    params = {
+        'owner': f'{login}',
+        'filter': 'albums',
+        'likeFilter': 'favorite',
+        'kidsSubPage': '',
+        'page': '0',
+        'sort': '',
+        'dir': '',
+        'lang': 'ru',
+        'external-domain': 'music.yandex.ru',
+        'overembed': 'false',
+        'ncrnd': '0.14500446687113966',
+    }
+
+    response = requests.get('https://music.yandex.ru/handlers/library.jsx', params=params, headers=headers)
+    return response
+
+def list_album_update(user_id):
+    login = get_user_login(user_id)
+    response = response_album(login)
+    id_albums = response.json()['albumIds']
+    count_albums = len(id_albums)
+    print(count_albums)
+    print(response.json())
+    if response.status_code == 200:
+        i = 0
+        while (i < count_albums):
+
+            id_album = response.json()['albums'][i]['id']
+            artist = response.json()['albums'][i]['artists']
+            title = response.json()['albums'][i]['title']
+            autors = ', '.join([artist['name'] for artist in artist])
+            print(id_album, title, autors)
+            if check_album(id_album)== 0:
+                result = insert_album(id_album, title, autors)
+            count_tracks = len(get_tracks_from_album(id_album))
+            count_tracks_from_table = search_count_tracks(id_album)
+            print(count_tracks_from_table, count_tracks)
+            if count_tracks_from_table < count_tracks:
+                result = insert_album(id_album, title, autors)
+            result2 = insert_album_user(user_id, id_album)
+            i += 1
+            # print( result2)
+
+def search_count_tracks(id_album):
+    query = (
+        tracks
+        .select().where(tracks.album_id == id_album).count()
+    )
+    # print(query)
+    return query
+
+def insert_tracks_from_album(id_album):
+    response = response_list_album(id_album)
+    count_tracks = response.json()['pager']['total']
+    # print(count_tracks)
+    for i in range(count_tracks):
+        title_track = response.json()['volumes'][0][i]['title']
+
+        id_track = response.json()['volumes'][0][i]['id']
+        artist = response.json()['volumes'][0][i]['artists']
+        autors = ', '.join([artist['name'] for artist in artist])
+        res = insert_track_from_album(id_album, title_track, id_track, autors)
+        # print(title_track, autors)
+    return f"доб. треки альбома {id_album}"
+
+
+
+
+def insert_track_from_album(album_id, title_track, id_track, autors):
+    try:
+        with db.atomic():
+            pkey1 = tracks.insert(
+                yandex_music_id=id_track,
+                title=title_track,
+                artist=autors,
+                album_id=album_id
+            ).on_conflict('IGNORE').execute()
+
+            return pkey1 if pkey1 else 0
+    except IntegrityError:
+        return 0
+
+def insert_album(id_album, album_title, autors):
+    try:
+        with db.atomic():
+
+            # Вставка альбома с обработкой конфликта
+            pkey2 = albums.insert(
+                yandex_music_id=id_album,
+                title=album_title,
+                artist=autors
+            ).on_conflict('IGNORE').execute()
+            insert_tracks_from_album(id_album)
+            return  pkey2 if pkey2 else 0
+    except IntegrityError:
+        return 0
+
+
+def insert_album_user(user__id, id_album):
+    pkey = useralbums.insert(
+        album_id=id_album,
+        user_id=user__id
+
+    ).on_conflict('IGNORE').execute()
+    return pkey if pkey else 0
+
+
+
+def get_list_albums(user_id):
+    query = (
+        albums
+        .select(albums.yandex_music_id, albums.title, albums.artist)
+        .join(useralbums, on=(useralbums.album_id == albums.yandex_music_id))
+        .where(useralbums.user_id == user_id))
+
+    list_albums_info = []
+    for row in query:
+        list_albums_info.append({
+            'album_id': row.yandex_music_id,
+            'title':  row.title,
+            'artist': row.artist
+        })
+    # print(list_albums_info)
+    return list_albums_info
+
+def get_tracks_from_album(album_id):
+    query = (
+        tracks
+        .select(tracks.yandex_music_id, tracks.title, tracks.artist)
+        .where(tracks.album_id == album_id))
+
+    list_tracks_info = []
+    for row in query:
+        list_tracks_info.append({
+            'track_id': row.yandex_music_id,
+            'title': row.title,
+            'artist': row.artist
+        })
+
+    return list_tracks_info
+
+def response_list_album(id_album):
+
+
+    headers = {
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Accept-Language': 'ru,en;q=0.9',
+        'Connection': 'keep-alive',
+        'Referer': f'https://music.yandex.ru/album/{id_album}',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.771 YaBrowser/23.11.2.771 Yowser/2.5 Safari/537.36',
+        'X-KL-kfa-Ajax-Request': 'Ajax_Request',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-Retpath-Y': f'https://music.yandex.ru/album/{id_album}',
+        # 'X-Yandex-Music-Client-Now': '2023-12-21T01:49:57+03:00',
+        'sec-ch-ua': '"Chromium";v="118", "YaBrowser";v="23", "Not=A?Brand";v="99"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+    }
+
+    params = {
+        'album': f'{id_album}',
+        'light': 'true',
+        'sortOrder': '',
+        'lang': 'ru',
+        'external-domain': 'music.yandex.ru',
+        'overembed': 'false',
+        'ncrnd': '0.3174074233986255',
+    }
+
+    response = requests.get('https://music.yandex.ru/handlers/album.jsx', params=params, headers=headers)
+
+    return response
+
+

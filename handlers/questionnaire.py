@@ -1,11 +1,10 @@
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
-from aiogram.filters import Command
+
 from aiogram.fsm.context import FSMContext
 from utils.states import Form
 from keyboards import inline, fabrics, reply
 from keyboards.reply import rmk
-from keyboards.builders import profile
 from responses import check_token
 from data import DataBase
 
@@ -13,8 +12,9 @@ from data import DataBase
 
 router = Router()
 
-@router.callback_query(fabrics.Action.filter(F.action.in_('profile')))
+@router.callback_query(fabrics.Action.filter(F.action.in_("profile")))
 async  def fill_profile(call: CallbackQuery, state: FSMContext, bot: Bot):
+    print('fdgdfgfgfdgdf')
     await state.set_state(Form.login)
     await bot.send_message(text="✅Первое - введи свой логин Яндекс:", chat_id=call.message.chat.id)
 
@@ -26,7 +26,7 @@ async def form_login(message: Message, state: FSMContext):
     await message.answer("✅Теперь нужно ввести токен для авторизации.\n"
                          "Для этого перейдите по одной из ссылок,"
                          "которые находятся ниже и установите расширение либо приложение для Андроид."
-                         "Далее нужно пройти процесс авторизации в аккаунт и скопировать в расширении этот токен.", reply_markup=inline.links)
+                         "Далее нужно пройти процесс авторизации в аккаунт и скопировать в расширении этот токен.", reply_markup=fabrics.action_user())
 
 @router.message(Form.token)
 async def form_token(message: Message, state: FSMContext):
@@ -41,5 +41,5 @@ async def form_token(message: Message, state: FSMContext):
                              reply_markup=reply.main_kb)
         await state.clear()
     else:
-        await message.answer("Вы ввели некоректный токен, проверьте его правильность.", reply_markup=fabrics.action_user())
+        await message.answer("Вы ввели некоректный токен, проверьте его правильность.")
         return

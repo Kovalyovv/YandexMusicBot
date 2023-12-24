@@ -3,7 +3,7 @@ import requests
 from data import DataBase
 from yandex_music import ClientAsync
 
-client = ClientAsync('y0_AgAAAAAhlBCGAAG8XgAAAAD0UyzdQynAQ65FSKa0gSsmLfAzmVZDyd0').init()
+# client = ClientAsync('y0_AgAAAAAhlBCGAAG8XgAAAAD0UyzdQynAQ65FSKa0gSsmLfAzmVZDyd0').init()
 
 
 # y0_AgAAAAAWnOL8AAG8XgAAAAD0W4H_QsZGsAzlQkOFxfjle_UBOIz4WcE
